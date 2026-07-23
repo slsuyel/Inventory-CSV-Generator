@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopify Inventory CSV Generator (Client-Side)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- PapaParse CDN for 100% Client-Side CSV Parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="background-glow"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-badge">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+                <span>Pure Client-Side Tool</span>
+            </div>
+            <h1>Shopify Inventory CSV Generator</h1>
+            <p class="subtitle">Upload your Shopify Product CSV to generate an Inventory CSV with SKU mapping. Runs 100% locally in your browser with zero server required.</p>
+        </header>
+
+        <!-- Main Card -->
+        <main class="main-card">
+            <form id="converter-form" onsubmit="return false;">
+                <!-- Configuration Grid -->
+                <div class="config-grid">
+                    <div class="input-group">
+                        <label for="location-input">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+                            Location Name
+                        </label>
+                        <input type="text" id="location-input" value="74-09 37th Ave E" placeholder="e.g. 74-09 37th Ave E" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="stock-input">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                            Default Stock
+                        </label>
+                        <input type="number" id="stock-input" value="10" min="0" placeholder="e.g. 10" required>
+                    </div>
+                </div>
+
+                <!-- Dropzone -->
+                <div class="dropzone" id="dropzone">
+                    <input type="file" id="file-input" accept=".csv" class="file-input-hidden">
+                    <div class="dropzone-content">
+                        <div class="upload-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                        </div>
+                        <h3 id="dropzone-title">Select or Drop Product CSV File</h3>
+                        <p id="dropzone-desc">Drag and drop your <code>products_export.csv</code> here, or <span class="browse-btn">Browse File</span></p>
+                        <div class="file-badge hidden" id="file-badge">
+                            <span class="file-name" id="file-name-text">filename.csv</span>
+                            <button type="button" class="remove-file-btn" id="remove-file-btn" title="Remove file">&times;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="action-bar">
+                    <button type="button" id="convert-btn" class="btn btn-primary" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        Generate Inventory CSV
+                    </button>
+                    <button type="button" id="download-btn" class="btn btn-success hidden">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Download inventory.csv
+                    </button>
+                </div>
+            </form>
+
+            <!-- Real-Time Metrics & Statistics -->
+            <div class="stats-grid hidden" id="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Products</span>
+                    <span class="stat-value" id="stat-products">0</span>
+                    <span class="stat-sub">Unique Handles</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Variants</span>
+                    <span class="stat-value" id="stat-variants">0</span>
+                    <span class="stat-sub">Image Rows Excluded</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Duplicate SKUs</span>
+                    <span class="stat-value warning" id="stat-duplicate-skus">0</span>
+                    <span class="stat-sub">Reused SKU Codes</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Missing SKUs</span>
+                    <span class="stat-value danger" id="stat-missing-skus">0</span>
+                    <span class="stat-sub">Blank SKU Field</span>
+                </div>
+            </div>
+
+            <!-- Notifications / Alert Box -->
+            <div class="alert hidden" id="alert-box"></div>
+        </main>
+
+        <!-- Pure Client-Side Info Footer -->
+        <footer class="app-footer">
+            <div class="hosting-info">
+                <div class="info-badge">⚡ Zero Backend Required</div>
+                <p>Deploy this exact folder directly to <strong>GitHub Pages</strong>, <strong>Netlify</strong>, or <strong>Vercel</strong>, or simply double-click <code>index.html</code> to run it locally in any browser!</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
